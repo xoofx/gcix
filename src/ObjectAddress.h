@@ -21,6 +21,7 @@
 
 #include "Constants.h"
 #include "ObjectFlags.h"
+#include "ObjectConstants.h"
 #include "ObjectType.h"
 
 namespace gcix
@@ -51,6 +52,14 @@ namespace gcix
 		inline bool IsMarked() const
 		{
 			return (int32_t)ObjectFlags < 0;
+		}
+
+		/**
+		Indicates whether the object is marked by the collector
+		*/
+		inline bool IsStickyLogged() const
+		{
+			return (((uint8_t*)this)[4] & ObjectFlags::StickyLogHigh) != 0;
 		}
 
 		/** 
@@ -117,7 +126,7 @@ namespace gcix
 		*/
 		inline void* ToUserObject() const
 		{
-			return ((uint8_t*)this + ObjectFlags::HeaderTotalSizeInBytes);
+			return (void*)((intptr_t)this + ObjectConstants::HeaderTotalSizeInBytes);
 		}
 
 		inline void* GetClassDescriptor() const
@@ -135,7 +144,7 @@ namespace gcix
 		*/
 		ObjectVisitorDelegate GetVisitor() const
 		{
-			return *(ObjectVisitorDelegate*)((uint8_t*)GetClassDescriptor() + ObjectFlags::OffsetToVisitorFromVTBL);
+			return *(ObjectVisitorDelegate*)((intptr_t)GetClassDescriptor() + ObjectConstants::OffsetToVisitorFromVTBL);
 		}
 
 		/**
@@ -143,7 +152,7 @@ namespace gcix
 		*/
 		static inline ObjectAddress* FromUserObject(void* object)
 		{
-			return object == nullptr ? nullptr : (ObjectAddress*)((uint8_t*)object - ObjectFlags::HeaderTotalSizeInBytes);
+			return object == nullptr ? nullptr : (ObjectAddress*)((intptr_t)object - ObjectConstants::HeaderTotalSizeInBytes);
 		}
 	};
 
@@ -154,7 +163,7 @@ namespace gcix
 	{
 		/** 
 		Initiailize this object as a StandardObject 
-		@param size Size of the object. Must be <= @see ObjectFlags::MaxObjectSizePerBlock
+		@param size Size of the object. Must be <= @see ObjectConstants::MaxObjectSizePerBlock
 		*/
 		inline void Initialize(size_t size)
 		{
@@ -168,7 +177,7 @@ namespace gcix
 		{
 			gcix_assert(IsStandardObject());
 			if (ObjectFlags == 0) return 0;
-			auto objectSize = (ObjectFlags & ObjectFlags::SizeMask) + ObjectFlags::HeaderTotalSizeInBytes;
+			auto objectSize = (ObjectFlags & ObjectFlags::SizeMask) + ObjectConstants::HeaderTotalSizeInBytes;
 			return objectSize;
 		}
 
@@ -181,7 +190,7 @@ namespace gcix
 
 			auto size = Size();
 			if (size == 0) return nullptr;
-			return (StandardObjectAddress*)((uint8_t*)this + size);
+			return (StandardObjectAddress*)((intptr_t)this + size);
 		}
 
 		/** 
@@ -212,7 +221,7 @@ namespace gcix
 	};
 
 	/**
-	A large object with size larger than @see ObjectFlags::MaxObjectSizePerBlock
+	A large object with size larger than @see ObjectConstants::MaxObjectSizePerBlock
 	*/
 	struct LargeObjectAddress : ObjectAddress
 	{
@@ -231,7 +240,7 @@ namespace gcix
 		inline bool Contains(void* ptr)
 		{
 			auto size = Size();
-			return ptr >= this && ptr < ((uint8_t*)this + size);
+			return ptr >= this && ptr < (void*)((intptr_t)this + size);
 		}
 
 		/** 
@@ -267,7 +276,7 @@ namespace gcix
 		inline ObjectAddress* Parent() const
 		{
 			gcix_assert(IsInnerObject());
-			return (ObjectAddress*)((uint8_t*)this - (ObjectFlags & ObjectFlags::LargeSizeAndInnerObjectOffsetMask));
+			return (ObjectAddress*)((intptr_t)this - (ObjectFlags & ObjectFlags::LargeSizeAndInnerObjectOffsetMask));
 		}
 	};
 #endif

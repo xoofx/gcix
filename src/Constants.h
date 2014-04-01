@@ -82,14 +82,21 @@ namespace gcix
 		/** Mask of block per allocation chunk */
 		static const uint32_t BlockCountPerChunkMask = BlockCountPerChunk-1;
 
-		/** Total size of a chunk of blocks, including alloc alignment/local large object space */
+		/** Size of a chunk of blocks */
 		static const uint32_t ChunkSizeInBytes = BlockSizeInBytes * BlockCountPerChunk;
+
+		/** Total size of a chunk of blocks, including alloc alignment/local large object space */
+		static const uint32_t TotalChunkSizeInBytes = ChunkSizeInBytes + BlockSizeInBytes;
 
 		/** Try to collect every CollectTriggerLimit bytes allocated */
 		static const size_t CollectTriggerLimit = ChunkSizeInBytes * 7;
 
 		/** Try to collect every CollectTriggerLimit bytes allocated */
 		static const size_t AlignSizeMask = ~((size_t)BlockSizeInBytesMask);
+
+		/** The minimum number of free chunks to keep alive after recycle */
+		static const int32_t MinimumFreeChunkToKeepAliveAfterRecycle = 1;
+		static_assert(MinimumFreeChunkToKeepAliveAfterRecycle >= 1, "MinimumFreeChunkToKeepAliveAfterRecycle must be >= 1");
 
 	private:
 		Constants(){}

@@ -20,24 +20,40 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Common.h"
+#include "Utility\Memory.h"
+#ifndef GCIX_PLATFORM_WINDOWS
+#include <condition_variable>
+#include <mutex>
+#endif
 
 namespace gcix
 {
-	class Utility
+	/**
+	Notifies one or more waiting threads that an event has occurred.
+	*/
+	class ManualResetEvent final
 	{
 	public:
+		ManualResetEvent();
+		~ManualResetEvent();
 
-		static inline bool IsPowerOfTwoOrZero(uint32_t value)
-		{
-			return (value & (value - 1)) == 0;
-		}
+		void Reset();
 
-		template <typename T>
-		static inline T Align(T size, uint32_t align)
-		{
-			// Check that align is a power of two
-			gcix_assert(IsPowerOfTwoOrZero(align));
-			return (size + (align-1)) & ~(align-1);
-		}
+		void Set();
+
+		void WaitOne();
+
+		gcix_overrides_new_delete();
+
+	private:
+
+#ifdef GCIX_PLATFORM_WINDOWS
+		void* eventHandle;
+#else
+		std::condition_variable_any cond;
+		std::mutex mutex;
+		bool signaled;
+#endif
 	};
+
 }

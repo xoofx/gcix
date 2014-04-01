@@ -20,14 +20,15 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Common.h"
-#include <algorithm>
 
-#include "List.h"
+#include "Collections\List.h"
 #include "BlockData.h"
-#include "Memory.h"
+#include "Utility\Memory.h"
 #include "Chunk.h"
 #include "ObjectAddress.h"
-#include "OrderedBucketRange.h"
+#include "Collections\OrderedBucketRange.h"
+#include "Threading\Mutex.h"
+#include "Marker.h"
 
 namespace gcix
 {
@@ -36,7 +37,7 @@ namespace gcix
 	public:
 		inline static Chunk* GetEndOfItem(Chunk* chunk)
 		{
-			return (Chunk*)((uint8_t*)chunk + Constants::ChunkSizeInBytes);
+			return (Chunk*)((intptr_t)chunk + Constants::ChunkSizeInBytes);
 		}
 	};
 
@@ -45,16 +46,31 @@ namespace gcix
 	public:
 		inline static LargeObjectAddress* GetEndOfItem(LargeObjectAddress* object)
 		{
-			return (LargeObjectAddress*)((uint8_t*)object + object->Size());
+			return (LargeObjectAddress*)((intptr_t)object + object->Size());
 		}
 	};
 
+    /**
+    Provides method to allocate @see BlockData used by @see ThreadLocalAllocator for small/medium object or LargeObject data.
+    */
 	class GlobalAllocator
 	{
 		friend class Collector;
 	public:
+        /**
+        Returns an allocated block.
+        This function is primarily used by the @see ThreadLocalAllocator
+        @param requestForEmptyBlock true to force the returned block to be an empty/free block (not recyclable)
+        @return an address to a @see BlockData or `nullptr_t` in case of an out of memory.
+        */
 		BlockData* RequestBlock(bool requestForEmptyBlock);
 
+        /**
+        Allocate a large object.
+        @param size Size of the large object to allocate.
+        @param classDescriptor A pointer to the class descriptor that will be setup on the first word on the object
+        @return a @see LargeObjectAddress or `nullptr_t` in case of an out of memory.
+        */
 		LargeObjectAddress* AllocateLargeObject(uint32_t size, void* classDescriptor);
 
 		inline bool CollectRequested() const
@@ -64,19 +80,24 @@ namespace gcix
 
 		ObjectAddress* FindObjectConservative(void* ptr);
 
-		static void Initialize()
-		{
-			if (Instance == nullptr)
-			{
-				Instance = new GlobalAllocator();
-			}
-		}
+        /**
+        Initializze the @see GlobalCollector::Instance variable. 
+        */
+		static void Initialize();
 
+        /**
+        Returns the total bytes allocated by this global allocator.
+        @return size of allocated data
+        */
 		inline size_t TotalBytesAllocated()
 		{
 			return totalAllocated;
 		}
 
+        /**
+        Returns the bytes allocated since a last collection occured.
+        @return size of allocated data since last collect
+        */
 		inline size_t AllocatedBytesSinceLastCollect()
 		{
 			return allocatedSinceLastCollect;
@@ -87,24 +108,47 @@ namespace gcix
 		*/
 		void ClearMarked();
 
+        /**
+        Recycle allocated blocks.
+        */
 		void Recycle();
 
-		static GlobalAllocator* Instance;
-		bool collectRequested;
-		size_t allocatedSinceLastCollect;
+		void AddGcRoot(void** gcRoot);
 
+		void RemoveGcRoot(void** gcRoot);
+
+		/**
+		Mark all gc roots objects.
+		*/
+		void MarkRoots()
+		{
+			for (int i = 0; i < gcRoots.Count(); i++)
+			{
+				if (*gcRoots[i] != nullptr)
+				{
+					ObjectAddress* object = ObjectAddress::FromUserObject(*gcRoots[i]);
+					Marker::Mark(object);
+				}
+			}
+		}
+
+		static GlobalAllocator* Instance;
 	private:
-		GlobalAllocator() : 
+		gcix_overrides_new_delete();
+			
+		GlobalAllocator() :
 			nextRecyclableChunkIndex(-1), 
 			nextFreeChunkIndex(-1),
 			nextBlockIndexInChunk(0), 
 			totalAllocated(0), 
 			allocatedSinceLastCollect(0),
 			collectRequested(false),
-			useRecyclableBlocks(false)
+			useRecyclableBlocks(false),
+			gcRoots(GCRootsCount)
 		{
 		}
 
+		static const int GCRootsCount = 512;
 		static const int BucketCount = 512;
 		static const int ChunkPerBucketCount = 8;
 
@@ -136,8 +180,15 @@ namespace gcix
 			}
 		}
 
+		inline void FreeAllocatedSize(size_t size)
+		{
+			totalAllocated -= size;
+		}
+
+		Mutex mutexChunks;
 		OrderedBucketRange<Chunk, OrderedBucketRangeChunkHelper> Chunks;
 
+		Mutex mutexLargeObjects;
 		OrderedBucketRange<LargeObjectAddress, OrderedBucketRangeLargeObjectHelper> LargeObjects;
 
 		/* Pointer to the current chunk in used for allocation*/
@@ -152,9 +203,15 @@ namespace gcix
 
 		bool useRecyclableBlocks;
 
+        bool collectRequested;
+        size_t allocatedSinceLastCollect;
+
+		Mutex mutexRoots;
+		List<void**> gcRoots;
+
 		// -----------------------------------------------------------
 		// Unit tets
 		// -----------------------------------------------------------
-		FRIEND_TEST(GlobalAllocator, RequestBlock);
+		FRIEND_TEST(GlobalAllocatorTest, RequestBlock);
 	};
 }

@@ -1,8 +1,7 @@
-﻿#pragma once
-// Copyright (c) 2014, Alexandre Mutel
+﻿// Copyright (c) 2014, Alexandre Mutel
 // All rights reserved.
 // 
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
+// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following  
 // conditions are met:
 // 
 // 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following 
@@ -19,29 +18,5 @@
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "Common.h"
-
-namespace gcix
-{
-	/**
-	Header of a chunk, stored in the first @see BlockData allocated in a chunk.
-	*/
-	struct ChunkHeader
-	{
-		/**
-		The offset between the address of a chunk and the raw address allocated for the chunk (in order to satisfy block
-		alignment).
-		*/
-		int32_t AllocationOffset;
-
-		/**
-		The number of unavailable blocks in this chunk.
-		*/
-		uint16_t BlockUnavailableCount;
-
-		/**
-		The number of recyclable blocks in this chunk.
-		*/
-		uint16_t BlockRecyclableCount;
-	};
-}
+#include "Utility\Memory.h"
+#include "Collections\SequentialStoreBuffer.h"

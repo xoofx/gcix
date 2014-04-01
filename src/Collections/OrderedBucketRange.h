@@ -20,7 +20,7 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Common.h"
-#include "Memory.h"
+#include "Utility\Memory.h"
 
 namespace gcix
 {
@@ -80,7 +80,7 @@ namespace gcix
 			}
 
 			// Update min/max chunk address
-			if (minItem == 0 || item < minItem)
+			if (minItem == nullptr || item < minItem)
 			{
 				minItem = item;
 			}
@@ -90,19 +90,19 @@ namespace gcix
 			}
 		}
 
-		inline void Remove(T* item)
+		inline void Remove(int index)
 		{
-			auto index = ListExtensions::FindOrderedIndex(Items, item);
+			auto item = Items[index];
 			Items.Remove(index);
 
 			// Get the current bucket
 			auto bucket = GetBucket(item);
 			auto endItem = THelper::GetEndOfItem(item);
 			
-			auto endItemRaw = (size_t)endItem;
-			for(auto startItem = (size_t)item; startItem < endItemRaw; startItem += BucketSize)
+			auto endItemRaw = (intptr_t)endItem;
+			for (auto startItem = (intptr_t)item; startItem < endItemRaw; startItem += BucketSize)
 			{
-				auto bucket = GetBucket(startItem);
+				auto bucket = GetBucket((T*)startItem);
 				index = ListExtensions::FindOrderedIndex(*bucket, item);
 				if (index < bucket->Count() && (*bucket)[index] == item)
 				{
@@ -113,12 +113,29 @@ namespace gcix
 					break;
 				}
 			}
+		}
 
-			auto bucket = GetBucket(item);
-			index = ListExtensions::FindOrderedIndex(*bucket, item);
-			bucket->Remove(index);
+		void ResetMinMax()
+		{
+			// Recompute min/max
+			minItem = nullptr;
+			maxItem = nullptr;
+			auto count = Items.Count();
+			for (int i = 0; i < count; i++)
+			{
+				auto item = Items[i];
+				auto endItem = THelper::GetEndOfItem(item);
 
-			// TODO: We need to recompute min/max
+				// Update min/max chunk address
+				if (minItem == nullptr || item < minItem)
+				{
+					minItem = item;
+				}
+				if (endItem > maxItem)
+				{
+					maxItem = endItem;
+				}
+			}
 		}
 
 		inline List<T*>* GetBucket(T* approximateValue)

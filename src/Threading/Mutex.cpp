@@ -1,7 +1,7 @@
 ﻿// Copyright (c) 2014, Alexandre Mutel
 // All rights reserved.
 // 
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
+// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following  
 // conditions are met:
 // 
 // 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following 
@@ -18,48 +18,70 @@
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "Chunk.h"
-#include "Memory.h"
+#include "Threading\Mutex.h"
+#include "Utility\Memory.h"
+#ifdef GCIX_PLATFORM_WINDOWS
+#define WIN32_LEAN_AND_MEAN 1
+#include <Windows.h>
+#else
+#include <mutex>
+#endif
 
 namespace gcix
 {
-	Chunk* Chunk::Allocate()
+
+#ifdef GCIX_PLATFORM_WINDOWS
+	Mutex::Mutex()
 	{
-		auto rawChunk = Memory::AllocateZero(Constants::ChunkSizeInBytes + Constants::BlockSizeInBytes);
-
-		// out of memory, early exit
-		if (rawChunk == nullptr)
-		{
-			return nullptr;
-		}
-
-		// Align on a Block size boundary
-		auto chunk = (Chunk*)(((intptr_t)rawChunk + Constants::BlockSizeInBytes - 1) 
-			& (~((size_t)Constants::BlockSizeInBytes - 1)));
-
-		// Initialize all blocks
-		for(int i = 0; i < chunk->GetBlockCount(); i++)
-		{
-			chunk->GetBlock(i)->Initialize();
-		}
-
-		// Set the chunk header AFTER block are initialized (as block initialize clear all information)
-		ChunkHeader& header = chunk->Header();
-		header.AllocationOffset = (int32_t)((intptr_t)rawChunk - (intptr_t)chunk );
-		header.BlockUnavailableCount = 0;
-		header.BlockRecyclableCount = 0;
-
-		// TODO: Reuse space lost by alignment as a storage for LargeObjectSpace for objects with a size 
-		// < Constants::BlockSizeInBytes
-
-		return chunk;
+		privateMutex = ::CreateMutexEx(nullptr, nullptr, 0, SYNCHRONIZE);
 	}
 
-	void Chunk::Delete()
+	Mutex::~Mutex()
 	{
-		// Add gcix_assert here.
-
-		auto rawChunk = (intptr_t)this + Header().AllocationOffset;
-		Memory::Free((void*)rawChunk);
+		::CloseHandle(privateMutex);
 	}
+
+	/**
+	Locks this mutex.
+	*/
+	void Mutex::Lock()
+	{
+		auto result = ::WaitForSingleObjectEx(privateMutex, INFINITE, 0);
+		gcix_assert(result == WAIT_OBJECT_0);
+	}
+
+	/**
+	Unlocks this mutex.
+	*/
+	void Mutex::UnLock()
+	{
+		::ReleaseMutex(privateMutex);
+	}
+#else
+	Mutex::Mutex()
+	{
+	}
+
+	Mutex::~Mutex()
+	{
+	}
+
+	/**
+	Locks this mutex.
+	*/
+	void Mutex::Lock()
+	{
+		mutex.lock();
+	}
+
+	/**
+	Unlocks this mutex.
+	*/
+	void Mutex::UnLock()
+	{
+		mutex.unlock();
+	}
+#endif
+
 }
+

@@ -22,20 +22,16 @@
 #include "Common.h"
 #include "Constants.h"
 #include "ChunkHeader.h"
-#include "Memory.h"
+#include "Utility\Memory.h"
 #include "ObjectAddress.h"
 #include "LineFlags.h"
 #include "BlockFlags.h"
 
+#include <algorithm>
+
 namespace gcix
 {
-	/**
-	A line data used by @see BlockData
-	*/
-	struct LineData
-	{
-		uint8_t Buffer[Constants::LineSizeInBytes];
-	};
+	typedef uint8_t LineData[Constants::LineSizeInBytes];
 
 	/**
 	A block data is storing allocated object into lines. It contains a simple metadata in the header for
@@ -45,10 +41,14 @@ namespace gcix
 	{
 		struct
 		{
+
 			union
 			{
 				struct
 				{
+					/* Chunk description only valid in the first block data of a chunk */
+					uint8_t ChunkHeaderPadding[sizeof(ChunkHeader)];
+
 					uint32_t BumpCursor;
 					uint32_t BumpCursorLimit;
 
@@ -57,9 +57,6 @@ namespace gcix
 					uint8_t ConsecutiveUsedLineCount;
 					uint8_t Pinned;
 					uint8_t BlockIndex;
-
-					/* Chunk description only valid in the first block data of a chunk */
-					ChunkHeader Chunk;
 				} Info;
 
 				/* One LineFlags per line */
@@ -69,6 +66,7 @@ namespace gcix
 			/* One LineFlags per line */
 			LineFlags LineFlags[Constants::LineCount];
 		} Header;
+
 
 		// 32768 - 256 of object allocation
 		LineData Lines[Constants::LineCount];
@@ -114,7 +112,7 @@ namespace gcix
 			gcix_assert(ContainsObject(lineIndex));
 
 			auto offset = (uint8_t)(Header.LineFlags[lineIndex] & LineFlags::FirstObjectOffsetMask);
-			return (StandardObjectAddress*)&Lines[lineIndex].Buffer[offset];
+			return (StandardObjectAddress*)&Lines[lineIndex][offset];
 		}
 
 
@@ -145,6 +143,7 @@ namespace gcix
 			Header.Info.BlockFlags = BlockFlags::Unavailable;
 		}
 	private:
+		gcix_disable_new_delete_operator();
 		friend class Chunk;
 
 		/**
@@ -183,7 +182,7 @@ namespace gcix
 		/**
 		Clears unmarked lines and mark the block free, recyclable or marked.
 		*/
-		inline void Recycle()
+		__declspec(noinline) void Recycle()
 		{
 			Header.Info.BumpCursor = 0;
 			Header.Info.BumpCursorLimit = 0;
@@ -229,11 +228,13 @@ namespace gcix
 				}
 
 				Header.Info.BlockFlags = Header.Info.UsedLineCount == Constants::EffectiveLineCount ? BlockFlags::Unavailable :
-					BlockFlags::Recyclable;
+					Header.Info.UsedLineCount == 0 ? BlockFlags::Free : BlockFlags::Recyclable;
 			}
 			else
 			{
 				Header.Info.BlockFlags = BlockFlags::Free;
+				//memset(&Lines[1], 0, Constants::LineSizeInBytes * (Constants::LineCount - 1));
+				Memory::ClearSmall(&Lines[1], Constants::LineSizeInBytes * (Constants::LineCount - 1));
 			}
 
 			if (Header.Info.BumpCursor == 0)

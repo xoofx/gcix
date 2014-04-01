@@ -1,95 +1,117 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    <Filter Include="01-Core">
+      <UniqueIdentifier>{a14ab59d-dd3e-452d-a15f-c8c270124c58}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    <Filter Include="02-Collections">
+      <UniqueIdentifier>{72fb8dae-b43b-4148-8f55-bc5003f14df6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="00-Public">
+      <UniqueIdentifier>{3b65c95f-2d39-4a3d-8cc4-7c60a4d1b965}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03-Threading">
+      <UniqueIdentifier>{5db1ae3d-fea2-47c2-b2ec-8ab051863ee2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04-Utility">
+      <UniqueIdentifier>{cfbc6cb0-a974-4fc6-8598-507372f73987}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\Chunk.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\src\Threading\Mutex.cpp">
+      <Filter>03-Threading</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\Collector.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\src\gcix.cpp">
+      <Filter>00-Public</Filter>
     </ClCompile>
     <ClCompile Include="..\src\GlobalAllocator.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>01-Core</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\LocalAllocator.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\src\Utility\Memory.cpp">
+      <Filter>04-Utility</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\Stack.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\src\Threading\Thread.cpp">
+      <Filter>03-Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Threading\ManualResetEvent.cpp">
+      <Filter>03-Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ThreadLocalAllocator.cpp">
+      <Filter>01-Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Collections\SequentialStoreBuffer.cpp">
+      <Filter>02-Collections</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\Threading\Mutex.h">
+      <Filter>03-Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Collections\List.h">
+      <Filter>02-Collections</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Collections\OrderedBucketRange.h">
+      <Filter>02-Collections</Filter>
+    </ClInclude>
     <ClInclude Include="..\include\gcix.h">
-      <Filter>Header Files</Filter>
+      <Filter>00-Public</Filter>
     </ClInclude>
     <ClInclude Include="..\src\BlockData.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\BlockFlags.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Chunk.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\ChunkFlags.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ChunkHeader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\Collector.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Common.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Constants.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\GlobalAllocator.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\LineFlags.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\List.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\LocalAllocator.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Marker.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\Memory.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ObjectAddress.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ObjectConstants.h">
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ObjectFlags.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ObjectType.h">
-      <Filter>Header Files</Filter>
+      <Filter>01-Core</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\OrderedBucketRange.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\src\StackFrame.h">
+      <Filter>01-Core</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Stack.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\src\Utility\Memory.h">
+      <Filter>04-Utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Utility.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\src\Threading\Thread.h">
+      <Filter>03-Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Threading\ManualResetEvent.h">
+      <Filter>03-Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ThreadLocalAllocator.h">
+      <Filter>01-Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Collections\SequentialStoreBuffer.h">
+      <Filter>02-Collections</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

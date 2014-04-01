@@ -42,6 +42,8 @@ namespace gcix
 		}
 
 	private:
+		Marker() {}
+
 		static /* gcix_noinline */ void gcix_fastcall Mark(ObjectAddress* object, VisitorContext* context)
 		{
 			// If object is null or already marked, return immediately

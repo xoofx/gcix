@@ -22,13 +22,9 @@
 #include "Common.h"
 #include "Constants.h"
 
-#ifndef LIBGCIX_OBJECT_HEADER_ADDITIONAL_OFFSET 
-#define LIBGCIX_OBJECT_HEADER_ADDITIONAL_OFFSET (0)
-#endif
-
 namespace gcix
 {
-	/* 
+	/**
 	ObjectFlags are stored at ObjectFlags::ObjectHeaderOffset bytes before the address of an object.
 	Unlike original Immix paper that was using only 1 byte, we are using 4 bytes, to leverage on alignment
 	and to store additional information that will avoid to go through a type descriptor for some basic ops:
@@ -55,13 +51,10 @@ namespace gcix
 	class ObjectFlags
 	{
 	public:
-		/* Size of the Object Header */
-		static const uint8_t HeaderSize   = 4;
 
-		///* PointerFree bits (F) */
-		//static const uint32_t PointerFree = 0x00000001;
-
-		///* ObjectType bits (T) */
+		/** 
+		ObjectType bits (T) 
+		*/
 		static const uint32_t ObjectTypeMask = 0x00000003;
 
 		/** 
@@ -71,30 +64,27 @@ namespace gcix
 		static const uint32_t Marked      = 0x80000000; // Caution, the marker bit is always expected to be at this position
 														// as we are relying on the last bit to use a signed comparison
 
-		/* Size Mask bits (S)
+		/**
+		Sticky log bit (L) use to mark objects that have their references changes since last small collection, used when
+		generational sticky collection.
+		*/
+		static const uint8_t  StickyLogHigh = 0x40;
+		static const uint32_t StickyLog = 0x40000000;
+
+		/** 
+		Size Mask bits (S)
 		The size is stored as a multiple of 4 bytes 
 		(objects are allocated on a 4 bytes boundary)
 		*/
 		static const uint32_t SizeMask    = ((Constants::BlockSizeInBytes >> 2) - 1) << 2; // 0x1FFC 
 
-		/* Large Size Mask bits (S)
+		/**
+		Large Size Mask bits (S)
 		The size is stored as a multiple of 16 bytes 
 		(objects are allocated on a 16 bytes boundary)
 		*/
-		static const uint32_t LargeSizeAndInnerObjectOffsetMask = ~(Marked | ObjectTypeMask);
-
-		static const uint8_t AdditionalHeaderOffset = LIBGCIX_OBJECT_HEADER_ADDITIONAL_OFFSET;
-
-		static const uint8_t OffsetToVisitorFromVTBL = GCIX_OFFSET_TO_VISITOR_FROM_VTBL;
-
-		static const uint8_t HeaderTotalSizeInBytes = HeaderSize + AdditionalHeaderOffset;
-
-		/* Maxium size of an object in a block*/
-		static const size_t MaxObjectSizePerBlock = ((Constants::EffectiveBlockSizeInBytes - HeaderTotalSizeInBytes) / 4) & ~3; 
+		static const uint32_t LargeSizeAndInnerObjectOffsetMask = ~(Marked | StickyLog | ObjectTypeMask);
 	private:
 		ObjectFlags(){}
-
-		static_assert((AdditionalHeaderOffset & 3) == 0, "LIBGCIX_OBJECT_HEADER_ADDITIONAL_OFFSET " 
-			"must be multiple of 4 bytes");
 	};
 }

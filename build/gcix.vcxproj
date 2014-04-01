@@ -63,6 +63,9 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>false</ExceptionHandling>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -73,34 +76,39 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\Chunk.cpp" />
-    <ClCompile Include="..\src\Collector.cpp" />
+    <ClCompile Include="..\src\Collections\SequentialStoreBuffer.cpp" />
+    <ClCompile Include="..\src\gcix.cpp" />
     <ClCompile Include="..\src\GlobalAllocator.cpp" />
-    <ClCompile Include="..\src\LocalAllocator.cpp" />
-    <ClCompile Include="..\src\Stack.cpp" />
+    <ClCompile Include="..\src\ThreadLocalAllocator.cpp" />
+    <ClCompile Include="..\src\Threading\ManualResetEvent.cpp" />
+    <ClCompile Include="..\src\Threading\Thread.cpp" />
+    <ClCompile Include="..\src\Utility\Memory.cpp" />
+    <ClCompile Include="..\src\Threading\Mutex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\gcix.h" />
     <ClInclude Include="..\src\BlockData.h" />
     <ClInclude Include="..\src\BlockFlags.h" />
     <ClInclude Include="..\src\Chunk.h" />
-    <ClInclude Include="..\src\ChunkFlags.h" />
     <ClInclude Include="..\src\ChunkHeader.h" />
-    <ClInclude Include="..\src\Collector.h" />
+    <ClInclude Include="..\src\Collections\SequentialStoreBuffer.h" />
     <ClInclude Include="..\src\Common.h" />
     <ClInclude Include="..\src\Constants.h" />
     <ClInclude Include="..\src\GlobalAllocator.h" />
     <ClInclude Include="..\src\LineFlags.h" />
-    <ClInclude Include="..\src\List.h" />
-    <ClInclude Include="..\src\LocalAllocator.h" />
+    <ClInclude Include="..\src\Collections\List.h" />
+    <ClInclude Include="..\src\ThreadLocalAllocator.h" />
     <ClInclude Include="..\src\Marker.h" />
-    <ClInclude Include="..\src\Memory.h" />
+    <ClInclude Include="..\src\Threading\ManualResetEvent.h" />
+    <ClInclude Include="..\src\Threading\Thread.h" />
+    <ClInclude Include="..\src\Utility\Memory.h" />
+    <ClInclude Include="..\src\Threading\Mutex.h" />
     <ClInclude Include="..\src\ObjectAddress.h" />
+    <ClInclude Include="..\src\ObjectConstants.h" />
     <ClInclude Include="..\src\ObjectFlags.h" />
     <ClInclude Include="..\src\ObjectType.h" />
-    <ClInclude Include="..\src\OrderedBucketRange.h" />
-    <ClInclude Include="..\src\Stack.h" />
-    <ClInclude Include="..\src\Utility.h" />
+    <ClInclude Include="..\src\Collections\OrderedBucketRange.h" />
+    <ClInclude Include="..\src\StackFrame.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

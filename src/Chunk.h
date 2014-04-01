@@ -32,6 +32,11 @@ namespace gcix
 	{
 	public:
 		/**
+		Header of a chunk.
+		*/
+		ChunkHeader Header;
+
+		/**
 		Gets the number of blocks this chunk contains.
 		*/
 		inline int32_t GetBlockCount() const
@@ -51,7 +56,7 @@ namespace gcix
 
 		inline void* GetEndOfChunk() const
 		{
-			return (void*)((uint8_t*)this + Constants::ChunkSizeInBytes - sizeof(void*));
+			return (void*)((intptr_t)this + Constants::ChunkSizeInBytes - sizeof(void*));
 		}
 
 		/**
@@ -59,8 +64,7 @@ namespace gcix
 		*/
 		inline bool IsFree() const
 		{
-			ChunkHeader& header = Header();
-			return header.BlockUnavailableCount == 0 && header.BlockRecyclableCount == 0;
+			return Header.BlockUnavailableCount == 0 && Header.BlockRecyclableCount == 0;
 		}
 
 		/**
@@ -68,8 +72,7 @@ namespace gcix
 		*/
 		inline bool HasFreeBlocks() const
 		{
-			ChunkHeader& header = Header();
-			return  (((int32_t)header.BlockUnavailableCount + header.BlockRecyclableCount) < GetBlockCount());
+			return  (((int32_t)Header.BlockUnavailableCount + Header.BlockRecyclableCount) < GetBlockCount());
 		}
 
 		/**
@@ -77,24 +80,59 @@ namespace gcix
 		*/
 		inline bool HasRecyclableBlocks() const
 		{
-			ChunkHeader& header = Header();
-			return header.BlockRecyclableCount > 0;
+			return Header.BlockRecyclableCount > 0;
 		}
 
 	private:
 		friend class GlobalAllocator;
-		Chunk() {}
+		// Nothing in the default constructor, as everything is done in the custom new operator
+		Chunk() {} 
 
 		/**
-		Allocate a chunk.
+		Overrides new operator for chunk for handling special alignment and initialization.
 		*/
-		static Chunk* Allocate();
+		static void* operator new (size_t size)
+		{
+			// We are not using the original size of the chunk, as a chunk is a special block of memory
+			auto rawChunk = Memory::AllocateZero(Constants::ChunkSizeInBytes + Constants::BlockSizeInBytes);
+
+			// out of memory, early exit
+			if (rawChunk == nullptr)
+			{
+				return nullptr;
+			}
+
+			// Align on a Block size boundary
+			auto chunk = (Chunk*)(((intptr_t)rawChunk + Constants::BlockSizeInBytes - 1)
+				& (~((intptr_t)(1 << Constants::BlockBits) - 1)));
+
+			// Initialize all blocks
+			for (int i = 0; i < chunk->GetBlockCount(); i++)
+			{
+				chunk->GetBlock(i)->Initialize();
+			}
+
+			// Set the chunk header AFTER block are initialized (as block initialize clear all information)
+			chunk->Header.AllocationOffset = (int32_t)((intptr_t)rawChunk - (intptr_t)chunk);
+			chunk->Header.BlockUnavailableCount = 0;
+			chunk->Header.BlockRecyclableCount = 0;
+
+			// TODO: Reuse space lost by alignment as a storage for an additionnal LargeObjectSpace for objects with a size 
+			// < Constants::BlockSizeInBytes
+
+			return (void*)chunk;
+		}
 
 		/**
-		Delete a chunk.
+		Overrides delete operator for chunk. 
 		*/
-		void Delete();
-
+		static void operator delete (void *p)
+		{
+			// Add gcix_assert here.
+			Chunk* chunk = (Chunk*)p;
+			auto rawChunk = (intptr_t)p + chunk->Header.AllocationOffset;
+			Memory::Free((void*)rawChunk);
+		}
 		/**
 		Clear marked flags on blocks.
 		*/
@@ -117,10 +155,9 @@ namespace gcix
 			gcix_assert(block != nullptr);
 			if (block->IsRecyclable())
 			{
-				ChunkHeader& header = Header();
-				header.BlockRecyclableCount--;
-				header.BlockUnavailableCount++;
-				// A recyclable block remains in a recyclable state after this call, in order to let LocalAllocator identifying
+				Header.BlockRecyclableCount--;
+				Header.BlockUnavailableCount++;
+				// A recyclable block remains in a recyclable state after this call, in order to let ThreadLocalAllocator identifying
 				// them
 				return true;
 			}
@@ -137,8 +174,7 @@ namespace gcix
 			gcix_assert(block != nullptr);
 			if (block->IsFree())
 			{
-				ChunkHeader& header = Header();
-				header.BlockUnavailableCount++;
+				Header.BlockUnavailableCount++;
 				// A free block will be unavailable after this call.
 				block->SetFlags(BlockFlags::Unavailable);
 				return true;
@@ -151,9 +187,8 @@ namespace gcix
 		*/
 		inline void Recycle()
 		{
-			ChunkHeader& header = Header();
-			header.BlockUnavailableCount = 0;
-			header.BlockRecyclableCount = 0;
+			Header.BlockUnavailableCount = 0;
+			Header.BlockRecyclableCount = 0;
 
 			auto count = GetBlockCount();
 			for(int i = 0; i < count; i++)
@@ -162,21 +197,13 @@ namespace gcix
 				block->Recycle();
 				if (block->IsUnavailable())
 				{
-					header.BlockUnavailableCount++;
+					Header.BlockUnavailableCount++;
 				}
 				else if (block->IsRecyclable())
 				{
-					header.BlockRecyclableCount++;
+					Header.BlockRecyclableCount++;
 				}
 			}
-		}
-
-		/**
-		Returns a reference to the chunk header.
-		*/
-		inline ChunkHeader& Header() const
-		{
-			return ((BlockData*)this)->Header.Info.Chunk;
 		}
 	};
 }

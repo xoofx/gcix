@@ -20,7 +20,7 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Common.h"
-#include "Memory.h"
+#include "Utility\Memory.h"
 
 namespace gcix
 {
@@ -124,7 +124,7 @@ namespace gcix
 
 		inline void Remove(int32_t index)
 		{
-			gcix_assert(index < count);
+			gcix_assert(index >= 0 && index < count);
 			for(int32_t i = index; i < (count-1); i++)
 			{
 				items[i] = items[i+1];
@@ -134,7 +134,7 @@ namespace gcix
 
 		inline T &operator[](int32_t index) 
 		{ 
-			gcix_assert(index < count);
+			gcix_assert(index >=0 && index < count);
 			return items[index]; 
 		}
 	private:

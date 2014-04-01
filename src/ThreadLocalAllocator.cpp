@@ -18,77 +18,25 @@
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "LocalAllocator.h"
+#include "ThreadLocalAllocator.h"
 #include "GlobalAllocator.h"
-#include "Marker.h"
 
 namespace gcix
 {
-	gcix_thread_local LocalAllocator* LocalAllocator::Instance;
+	gcix_thread_local ThreadLocalAllocator* ThreadLocalAllocator::Instance;
 
-	gcix_noinline void LocalAllocator::StackCallback()
+	StandardObjectAddress* ThreadLocalAllocator::Allocate(uint32_t sizeInBytes, void* classDescriptor)
 	{
-		gcix_assert(LocalAllocator::Instance != nullptr);
-		gcix_assert(GlobalAllocator::Instance != nullptr);
-
-		// printf("Stack base:%p, top %p\n", stack.GetBottomOfStack(), stack.GetToOfStack());
-
-		auto startPointer = (uint32_t*)stack.GetToOfStack();
-		auto endPointer = (uint32_t*)stack.GetBottomOfStack();
-		// TODO: Add statistics
-
-		GlobalAllocator::Instance->ClearMarked();
-
-		auto globalAllocator = GlobalAllocator::Instance;
-		int marked = 0;
-		while (startPointer < endPointer)
-		{
-			auto pointerToCheck = *(void**)startPointer;
-
-			auto object = globalAllocator->FindObjectConservative(pointerToCheck);
-
-			if (object != nullptr)
-			{
-				Marker::Mark(object);
-				marked++;
-			}
-			startPointer++;
-		}
-
-		// TODO: Add statistics
-
-		GlobalAllocator::Instance->Recycle();
-	}
-
-	void LocalAllocator::Collect()
-	{
-		stack.Capture(this);
-	}
-
-
-	StandardObjectAddress* LocalAllocator::Allocate(uint32_t sizeInBytes, void* classDescriptor)
-	{
-		gcix_assert(LocalAllocator::Instance != nullptr);
+		gcix_assert(ThreadLocalAllocator::Instance != nullptr);
 		gcix_assert(GlobalAllocator::Instance != nullptr);
 		gcix_assert(classDescriptor != nullptr);
-
-		if (GlobalAllocator::Instance->CollectRequested())
-		{
-			stack.Capture(this);
-
-			// Reset this allocator current block in order to fetch a new block
-			current = nullptr;
-			overflow = nullptr;
-		}
-
-		gcix_assert(sizeInBytes > 0 
-			&& (sizeInBytes - ObjectFlags::HeaderSize - ObjectFlags::AdditionalHeaderOffset) < Constants::BlockSizeInBytes);
+		gcix_assert(sizeInBytes > 0 && sizeInBytes <= ObjectConstants::MaxObjectSizePerBlock);
 
 		// Align to 4 bytes
-		sizeInBytes = Utility::Align(sizeInBytes, 4);
+		sizeInBytes = Memory::Align(sizeInBytes, 4);
 
 		// Total size to allocate
-		uint32_t totalSizeInBytes = sizeInBytes + ObjectFlags::HeaderSize + ObjectFlags::AdditionalHeaderOffset;
+		uint32_t totalSizeInBytes = sizeInBytes + ObjectConstants::HeaderTotalSizeInBytes;
 		auto isMediumSizedObject = totalSizeInBytes > Constants::LineSizeInBytes;
 
 		// Start with current block handler
@@ -141,20 +89,20 @@ namespace gcix
 				uint32_t expectedLineCounts = (totalSizeInBytes + Constants::LineSizeInBytes - 1) >> Constants::LineBits;
 
 				// The indexo of the first line we are going to try to find a range of free lines
-				uint32_t newLineIndex = (bumpCursorLimit ? 
-					(bumpCursorLimit + 1): 
+				uint32_t newLineIndex = (bumpCursorLimit ?
+					(bumpCursorLimit + 1) :
 					bumpCursor) >> Constants::LineBits;
 
 				// Find a hole
 				auto pFlags = blockData->Header.LineFlags;
-				for(uint32_t i = newLineIndex; i < Constants::LineCount; i++)
+				for (uint32_t i = newLineIndex; i < Constants::LineCount; i++)
 				{
 					LineFlags& lineFlags = pFlags[i];
 					if ((lineFlags & LineFlags::Marked) != 0)
 					{
-						if (newCursorLineIndex > 0  && expectedLineCounts <= (i - newCursorLineIndex))
+						if (newCursorLineIndex > 0 && expectedLineCounts <= (i - newCursorLineIndex))
 						{
-							newCursorLimitLineIndex = i;	
+							newCursorLimitLineIndex = i;
 							goto holeFound;
 						}
 						newCursorLineIndex = 0;
@@ -170,7 +118,7 @@ namespace gcix
 					}
 				}
 				// If we can fit 
-				if (newCursorLineIndex > 0 && 
+				if (newCursorLineIndex > 0 &&
 					(expectedLineCounts <= (Constants::LineCount - newCursorLineIndex)))
 				{
 					newCursorLimitLineIndex = Constants::LineCount;
@@ -187,7 +135,7 @@ namespace gcix
 					// If we can't find a hole into the current block, we have to allocate a new block
 					goto allocateBlock;
 				}
-holeFound:
+			holeFound:
 				bumpCursor = newCursorLineIndex << Constants::LineBits;
 				bumpCursorLimit = newCursorLimitLineIndex << Constants::LineBits;
 			}
@@ -195,7 +143,7 @@ holeFound:
 			// ------------------------------------------------
 			//  Bump allocation
 			// ------------------------------------------------
-			StandardObjectAddress* object = (StandardObjectAddress*)((uint8_t*)blockData->Lines + bumpCursor);
+			StandardObjectAddress* object = (StandardObjectAddress*)((intptr_t)blockData->Lines + bumpCursor);
 			uint8_t offsetInLine = bumpCursor & Constants::LineSizeInBytesMask;
 			uint32_t lineIndex = bumpCursor >> Constants::LineBits;
 			LineFlags& lineFlags = blockData->Header.LineFlags[lineIndex];
@@ -218,7 +166,16 @@ holeFound:
 			// ------------------------------------------------
 			//  Get or create the next block
 			// ------------------------------------------------
-allocateBlock:
+		allocateBlock:
+			if (GlobalAllocator::Instance->CollectRequested())
+			{
+				stackFrame.Capture(this);
+
+				// Reset this allocator current block in order to fetch a new block
+				current = nullptr;
+				overflow = nullptr;
+			}
+
 			// Gets a new block for the current handler
 			*pBlockData = GlobalAllocator::Instance->RequestBlock(pBlockData == &overflow);
 
@@ -228,6 +185,58 @@ allocateBlock:
 				return nullptr;
 			}
 		}
+	}
+
+	LargeObjectAddress* ThreadLocalAllocator::AllocateLargeObject(uint32_t sizeInBytes, void* classDescriptor)
+	{
+		gcix_assert(ThreadLocalAllocator::Instance != nullptr);
+		gcix_assert(GlobalAllocator::Instance != nullptr);
+		gcix_assert(classDescriptor != nullptr);
+		gcix_assert(sizeInBytes > 0 && sizeInBytes <= ObjectConstants::MaxObjectSizePerBlock);
+
+
+		if (GlobalAllocator::Instance->CollectRequested())
+		{
+			stackFrame.Capture(this);
+		}
+
+		return GlobalAllocator::Instance->AllocateLargeObject(sizeInBytes, classDescriptor);
+	}
+
+	gcix_noinline void ThreadLocalAllocator::StackCallback()
+	{
+		gcix_assert(ThreadLocalAllocator::Instance != nullptr);
+		gcix_assert(GlobalAllocator::Instance != nullptr);
+
+		// printf("StackFrame base:%p, top %p\n", stack.GetBottomOfStack(), stack.GetToOfStack());
+
+		auto startPointer = (uint32_t*)stackFrame.GetToOfStack();
+		auto endPointer = (uint32_t*)stackFrame.GetBottomOfStack();
+		// TODO: Add statistics
+
+		GlobalAllocator::Instance->ClearMarked();
+
+		// First mark roots
+		GlobalAllocator::Instance->MarkRoots();
+
+		// Conservative mark of the current stack
+		auto globalAllocator = GlobalAllocator::Instance;
+		int marked = 0;
+		while (startPointer < endPointer)
+		{
+			auto pointerToCheck = *(void**)startPointer;
+
+			auto object = globalAllocator->FindObjectConservative(pointerToCheck);
+
+			if (object != nullptr)
+			{
+				Marker::Mark(object);
+				marked++;
+			}
+			startPointer++;
+		}
+
+		GlobalAllocator::Instance->Recycle();
 	}
 }
 

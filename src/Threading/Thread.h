@@ -20,57 +20,39 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Common.h"
-#include <algorithm>
+#include "Utility\Memory.h"
+#ifdef GCIX_PLATFORM_WINDOWS
+#include <thread>
+#endif
 
 namespace gcix
 {
+	typedef void(*ThreadRunDelegate)(void* context);
 
-	class Memory
+	/**
+	A Thread.
+	Using directly OS functions on Windows platform and C++11 on other platforms.
+	*/
+	class Thread
 	{
 	public:
-		static inline void Free(void* ptr)
-		{
-			return free(ptr);
-		}
-
-		static inline void* Allocate(size_t size)
-		{
-			return malloc(size);
-		}
-
-		static inline void* AllocateZero(size_t size)
-		{
-			void* ptr = malloc(size);
-			if (ptr == nullptr)
-			{
-				return ptr;
-			}
-			memset(ptr, 0, size);
-			return ptr;
-		}
-
-		static inline void* ReAllocate(void* ptr, size_t size)
-		{
-			return realloc(ptr, size);
-		}
+		Thread(ThreadRunDelegate task, void *context);
+		~Thread();
 
 		/**
-		Clear/zero a small region of memory
+		Blocks the caller of this method until this thread instance is terminated.
 		*/
-		static inline void ClearSmall(void* from, int size)
-		{
-			gcix_assert((size & 3) == 0);
+		void Join();
 
-			// This is usually translated to a rep stosd in x86
-			for(int i = 0; i < size/4; i++)
-			{
-				((uint32_t*)from)[i] = 0;
-			}
-		}
+		gcix_overrides_new_delete();
 
-		static inline void FastClearMemory128BytesOnAligned16bytes(void* ptr)
-		{
-			// TODO
-		}
+	private:
+
+#ifdef GCIX_PLATFORM_WINDOWS
+		std::thread thread;
+#else
+		void* privateThread;
+#endif
 	};
+
 }

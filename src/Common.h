@@ -20,9 +20,12 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdint.h>
-#include <assert.h>
 
 #include "gtest/gtest_prod.h"
+
+#ifdef _WIN32
+#define GCIX_PLATFORM_WINDOWS 1
+#endif
 
 // TODO Make it compiler dependent
 #define gcix_thread_local  __declspec(thread)
@@ -40,13 +43,28 @@
 #define GCIX_OFFSET_TO_VISITOR_FROM_VTBL 0 
 #endif
 
-#ifndef GCIX_NO_ASSERT
+#ifndef GCIX_OBJECT_HEADER_ADDITIONAL_OFFSET 
+#define GCIX_OBJECT_HEADER_ADDITIONAL_OFFSET (0)
+#endif
+
+#ifdef _DEBUG
+#define GCIX_ENABLE_ASSERT
+#endif
+
+#ifdef GCIX_ENABLE_ASSERT
+#include <assert.h>
 /**
 Assert macro
 @param expression to assert
 */
 #define gcix_assert(expression) assert(expression)
+#else
+#define gcix_assert(expression)
 #endif
+
+#define gcix_disable_new_delete_operator() \
+static void* operator new (size_t size) = delete; \
+static void operator delete (void *p) = delete; \
 
 /** 
 Macro used to declare a scoped enum which supports flags

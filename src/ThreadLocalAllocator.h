@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // Copyright (c) 2014, Alexandre Mutel
 // All rights reserved.
 // 
@@ -18,40 +18,51 @@
 // USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
 // OF THE POSSIBILITY OF SUCH DAMAGE.
-#include <stdint.h>
+
+#include "Common.h"
+
+#include "ObjectFlags.h"
+#include "LineFlags.h"
+#include "Constants.h"
+#include "BlockData.h"
+#include "Utility\Memory.h"
+#include "StackFrame.h"
+#include "ObjectAddress.h"
+#include "Marker.h"
 
 namespace gcix
 {
-	/**
-	The maximum size (inclusive) of a Standard object allocated in an immix block. Above this limit, an object must be 
-	allocated as a LargeObject.
-	*/
-	static const uint32_t StandardObjectMaxSizeInBytes = 16252;
+	class ThreadLocalAllocator
+	{
+	public:
+		StandardObjectAddress* Allocate(uint32_t sizeInBytes, void* classDescriptor);
 
-	/**
-	Initialize Immix collector. This method must be called before any other methods. Usually done at program initialization
-	time.
-	*/
-	void Initialize();
+		LargeObjectAddress* AllocateLargeObject(uint32_t sizeInBytes, void* classDescriptor);
 
-	/**
-	Initialize the current mutator thread. Must be called from any threads (including the main one) that is going to perform 
-	managed allocation.
-	*/
-	void InitializeMutatorThread();
+		BlockData* current;
+		BlockData* overflow;
 
-	/**
-	Allocates a standard size managed object.
-	@param size Size in bytes of the object. Must be > 0 and <= StandardObjectMaxSizeInBytes
-	@param userClassDescriptor Pointer to the object class descriptor that will be setup on the header of the object. Cannot be
-	null.
-	*/
-	void* AllocateStandardObject(uint32_t size, void* userClassDescriptor);
+		inline static void Initialize()
+		{
+			if (Instance == nullptr)
+			{
+				Instance = new ThreadLocalAllocator();
+			}
+		}
 
-	/**
-	Allocates a large size managed object.
-	@param size Size in bytes of the object. Must be > StandardObjectMaxSizeInBytes
-	@param userClassDescriptor Pointer to the object class descriptor that will be setup on the header of the object. Cannot be
-	*/
-	void* AllocateLargeObject(uint32_t size, void* userClassDescriptor);
+		gcix_thread_local static ThreadLocalAllocator* Instance;
+	private:
+		gcix_overrides_new_delete();
+			
+		inline ThreadLocalAllocator() : current(nullptr), overflow(nullptr)
+		{
+			stackFrame.Initialize();
+		}
+
+		gcix_noinline void StackCallback();
+
+		friend class StackFrame;
+
+		StackFrame stackFrame;
+	};
 }

@@ -81,6 +81,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="gcix-GlobalAllocator.cpp" />
+    <ClCompile Include="gcix-SequentialBufferStore.cpp" />
     <ClCompile Include="gcix-tests.cpp" />
   </ItemGroup>
   <ItemGroup>

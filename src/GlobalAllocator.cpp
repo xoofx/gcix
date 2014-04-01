@@ -20,23 +20,35 @@
 
 #include "GlobalAllocator.h"
 
-#include "List.h"
+#include "Collections\List.h"
 #include "ObjectFlags.h"
 #include "LineFlags.h"
-#include "Memory.h"
-#include "Utility.h"
-#include <mutex>
+#include "Utility\Memory.h"
+#include "Threading\Thread.h"
+#include "Threading\ManualResetEvent.h"
 
 namespace gcix
 {
-	std::mutex globalAllocatorMutex;
-#define GCIX_LOCK_ALLOCATOR std::lock_guard<std::mutex> lock(globalAllocatorMutex)
+	/**
+	Initializze the @see GlobalCollector::Instance variable.
+	*/
+	void GlobalAllocator::Initialize()
+	{
+		if (Instance == nullptr)
+		{
+			Memory::Initialize();
+			Instance = new GlobalAllocator();
+		}
+	}
 
 	BlockData* GlobalAllocator::RequestBlock(bool requestForEmptyBlock)
 	{
 		gcix_assert(GlobalAllocator::Instance != nullptr);
 
-		GCIX_LOCK_ALLOCATOR;
+		gcix_lock(mutexChunks);
+
+		// Update allocation counters
+		AddAllocatedSize(Constants::TotalChunkSizeInBytes);
 
 		// Allocate from recyclable blocks
 		if (useRecyclableBlocks && !requestForEmptyBlock)
@@ -88,7 +100,7 @@ namespace gcix
 		}
 
 		// Create new chunk and free blocks
-		Chunk* chunk = Chunk::Allocate();
+		Chunk* chunk = new Chunk();
 
 		// out of memory, early exit
 		if (chunk == nullptr)
@@ -101,9 +113,6 @@ namespace gcix
 		nextBlockIndexInChunk = 0;
 
 		Chunks.Add(chunk);
-
-		// Update allocation counters
-		AddAllocatedSize(Constants::ChunkSizeInBytes);
 
 		return chunk->GetBlock(nextBlockIndexInChunk++);
 	}
@@ -145,45 +154,88 @@ namespace gcix
 		nextFreeChunkIndex = -1;
 		nextBlockIndexInChunk = 0;
 
-		auto count = Chunks.Count();
-		for(int i = 0; i < count; i++)
+		// Recycle chunk/blocks
+		int freeChunkTotalCount = 0;
+		for (int i = 0; i < Chunks.Count(); i++)
 		{
 			auto chunk = Chunks[i];
 			chunk->Recycle();
+
 			if (chunk->HasRecyclableBlocks() && nextRecyclableChunkIndex < 0)
 			{
 				nextRecyclableChunkIndex = i;
 			}
-			else if (chunk->HasFreeBlocks() && nextFreeChunkIndex < 0)
+			else if (chunk->HasFreeBlocks())
 			{
-				nextFreeChunkIndex = i;
+				if (chunk->IsFree())
+				{
+					freeChunkTotalCount++;
+				}
+				if (nextFreeChunkIndex < 0)
+				{
+					nextFreeChunkIndex = i;
+				}
 			}
 		}
 
 		// Check if we have any recyclable blocks to reuse
 		useRecyclableBlocks = nextRecyclableChunkIndex >= 0;
-		if (!useRecyclableBlocks)
+
+		/*
+		// Free chunks that can be completely freed
+		if (freeChunkTotalCount > Constants::MinimumFreeChunkToKeepAliveAfterRecycle)
 		{
-			// If no recyclable block, check if we have a free block
-			if (nextFreeChunkIndex >= 0)
+			for (int i = Chunks.Count() - 1; i >= 0; i--)
 			{
-				nextRecyclableChunkIndex = nextFreeChunkIndex;
-				nextFreeChunkIndex = -1;
+				auto chunk = Chunks[i];
+				if (chunk->IsFree())
+				{
+					Chunks.Remove(i);
+					delete chunk;
+					FreeAllocatedSize(Constants::TotalChunkSizeInBytes);
+					break;
+					//freeChunkTotalCount--;
+					//if (freeChunkTotalCount == Constants::MinimumFreeChunkToKeepAliveAfterRecycle)
+					//{
+					//	break;
+					//}
+				}
+			}
+
+			// Recalculate min/max only after deleting all chunks
+			Chunks.ResetMinMax();
+		}
+		*/
+
+		// Recycle large objects
+		bool largeObjectRemoved = false;
+		for (int i = LargeObjects.Count() - 1; i >= 0; i--)
+		{
+			auto largeObject = LargeObjects[i];
+			if (!largeObject->IsMarked())
+			{
+				auto size = largeObject->Size();
+				totalAllocated -= size;
+				Memory::Free(largeObject);
+				LargeObjects.Remove(i);
+				largeObjectRemoved = true;
 			}
 		}
-
-		// TODO: Free last free blocks if not used but keep at least one free block
+		if (largeObjectRemoved)
+		{
+			LargeObjects.ResetMinMax();
+		}
 	}
 
 	LargeObjectAddress* GlobalAllocator::AllocateLargeObject(uint32_t size, void* classDescriptor)
 	{
 		gcix_assert(GlobalAllocator::Instance != nullptr);
-		gcix_assert(size > ObjectFlags::MaxObjectSizePerBlock);
+		gcix_assert(size > ObjectConstants::MaxObjectSizePerBlock);
 		gcix_assert(classDescriptor != nullptr);
 
 		// Allocate the object with standard allocation, align size of object on 16 bytes
-		auto sizeOfLargeObject = Utility::Align(size + ObjectFlags::HeaderTotalSizeInBytes, 16);
-		LargeObjectAddress* object = (LargeObjectAddress*)Memory::Allocate(sizeOfLargeObject);
+		auto sizeOfLargeObject = Memory::Align(size + ObjectConstants::HeaderTotalSizeInBytes, 16);
+		LargeObjectAddress* object = (LargeObjectAddress*)Memory::AllocateZero(sizeOfLargeObject);
 
 		// out of memory, early exit
 		if (object == nullptr)
@@ -195,9 +247,9 @@ namespace gcix
 		object->SetClassDescriptor(classDescriptor);
 
 		// TODO use a separate lock for LOB?
-		GCIX_LOCK_ALLOCATOR;
-		LargeObjects.Add(object);
+		gcix_lock(mutexLargeObjects);
 
+		LargeObjects.Add(object);
 		// Update allocation counters
 		AddAllocatedSize(Constants::ChunkSizeInBytes);
 
@@ -211,7 +263,7 @@ namespace gcix
 		// Discard immediately pointers that are outside the min/max chunk memory range
 		if (Chunks.Contains((Chunk*)ptr))
 		{
-			// Get the chunk bucket associated with this addrses
+			// Get the chunk bucket associated with this address
 			auto bucket = Chunks.GetBucket((Chunk*)ptr);
 
 			// Iterate on chunks
@@ -244,7 +296,8 @@ namespace gcix
 								}
 								else if (object == nullptr)
 								{
-									// If there is no other objects, or the next object after the pointer we are checking, return null
+									// If there is no other objects, or the next object after the pointer we are checking, 
+									// return null
 									goto CheckLargeObject;
 								}
 							} 
@@ -276,6 +329,26 @@ CheckLargeObject:
 		}
 
 		return nullptr;
+	}
+
+	void GlobalAllocator::AddGcRoot(void** gcRoot)
+	{
+		gcix_assert(gcRoot != nullptr);
+
+		gcix_lock(mutexRoots);
+		gcRoots.Add(gcRoot);
+	}
+
+	void GlobalAllocator::RemoveGcRoot(void** gcRoot)
+	{
+		gcix_assert(gcRoot != nullptr);
+
+		gcix_lock(mutexRoots);
+		int32_t index;
+		if (gcRoots.Find(gcRoot, index))
+		{
+			gcRoots.Remove(index);
+		}
 	}
 
 	GlobalAllocator* GlobalAllocator::Instance;

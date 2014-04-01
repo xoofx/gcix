@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // Copyright (c) 2014, Alexandre Mutel
 // All rights reserved.
 // 
@@ -20,44 +20,44 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "Common.h"
+#include "Constants.h"
 
 namespace gcix
 {
-	class Stack
+	/**
+	Constants used to allocate an object.
+	*/
+	class ObjectConstants
 	{
 	public:
-		Stack() : bottomOfStack(nullptr), topOfStack(nullptr) {}
+		/**
+		Size in bytes of the Object Header containing the 32bits @see ObjectFlags.
+		*/
+		static const uint8_t HeaderSize = sizeof(uint32_t);
 
-		inline void Initialize()
-		{
-			bottomOfStack = GetCurrentStack();
-		}
+		/**
+		Additional size in bytes to add to the object header to store custom objects information (hashcode, sync block... etc.)
+		*/
+		static const uint8_t AdditionalHeaderOffset = GCIX_OBJECT_HEADER_ADDITIONAL_OFFSET;
 
-		template<typename T>
-		gcix_noinline void Capture(T* context)
-		{
-			gcix_assert(bottomOfStack != nullptr);
-			topOfStack = GetCurrentStack();
-			context->StackCallback();
-		}
+		/**
+		Total size in bytes of the object header = @see HeaderSize + @see AdditionalHeaderOffset
+		*/
+		static const uint8_t HeaderTotalSizeInBytes = HeaderSize + AdditionalHeaderOffset;
 
-		inline void* GetBottomOfStack() const
-		{
-			return bottomOfStack;
-		}
+		/**
+		Maximum size in bytes of an object that can be allocated in a block
+		*/
+		static const size_t MaxObjectSizePerBlock = (Constants::EffectiveBlockSizeInBytes / 4 - HeaderTotalSizeInBytes) & ~3;
 
-		inline void* GetToOfStack() const
-		{
-			return topOfStack;
-		}
+		/**
+		Offset from the class descriptor address to the @see ObjectVisitorDelegate (used to visit references of an object) 
+		*/
+		static const uint8_t OffsetToVisitorFromVTBL = GCIX_OFFSET_TO_VISITOR_FROM_VTBL;
 	private:
-		inline void* GetCurrentStack() const
-		{
-			volatile int stackHere = 0;
-			return (void*)&stackHere;
-		}
+		ObjectConstants() {}
 
-		void* bottomOfStack;
-		void* topOfStack;
+		static_assert((AdditionalHeaderOffset & 3) == 0, "LIBGCIX_OBJECT_HEADER_ADDITIONAL_OFFSET "
+			"must be multiple of 4 bytes");
 	};
 }

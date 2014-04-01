@@ -17,5 +17,8 @@
     <ClCompile Include="gcix-GlobalAllocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="gcix-SequentialBufferStore.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

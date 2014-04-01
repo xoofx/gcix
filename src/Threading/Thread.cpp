@@ -1,8 +1,7 @@
-#pragma once
-// Copyright (c) 2014, Alexandre Mutel
+﻿// Copyright (c) 2014, Alexandre Mutel
 // All rights reserved.
 // 
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
+// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following  
 // conditions are met:
 // 
 // 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following 
@@ -19,47 +18,50 @@
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "Common.h"
-#include <algorithm>
-
-#include "ObjectFlags.h"
-#include "LineFlags.h"
-#include "Constants.h"
-#include "BlockData.h"
-#include "Memory.h"
-#include "Utility.h"
-#include "Stack.h"
-#include "ObjectAddress.h"
+#include "Threading\Thread.h"
+#ifdef GCIX_PLATFORM_WINDOWS
+#define WIN32_LEAN_AND_MEAN 1
+#include <Windows.h>
+#endif
 
 namespace gcix
 {
-	class LocalAllocator
+
+#ifdef GCIX_PLATFORM_WINDOWS
+	Thread::Thread(ThreadRunDelegate task, void *context) : thread(task, context)
 	{
-	public:
-		StandardObjectAddress* Allocate(uint32_t sizeInBytes, void* classDescriptor);
-		BlockData* current;
-		BlockData* overflow;
+	}
 
-		static void Initialize()
-		{
-			if (Instance == nullptr)
-			{
-				Instance = new LocalAllocator();
-				Instance->Initialize();
-			}
-		}
+	Thread::~Thread()
+	{
+	}
 
-		void Collect();
+	/**
+	Locks this mutex.
+	*/
+	void Thread::Join()
+	{
+		thread.join();
+	}
 
-		gcix_thread_local static LocalAllocator* Instance;
-	private:
-		LocalAllocator() : current(nullptr), overflow(nullptr) 
-		{
-			stack.Initialize();
-		}
-		gcix_noinline void StackCallback();
-		friend class Stack;
+#else
+	Thread::Thread()
+	{
+	}
 
-		Stack stack;
-	};
+	Thread::~Thread()
+	{
+	}
+
+	/**
+	Locks this mutex.
+	*/
+	void Thread::Join()
+	{
+		mutex.lock();
+	}
+
+#endif
+
 }
+

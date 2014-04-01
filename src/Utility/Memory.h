@@ -19,21 +19,66 @@
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED 
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "List.h"
+#include "Common.h"
 
 namespace gcix
 {
 
-	class Collector
+	/**
+	Macros to use inside a class definition to overrides new/delete operators and to re-route all allocations to 
+	@see Memory class
+	*/
+	#define gcix_overrides_new_delete() \
+	static void* operator new (size_t size) {\
+		return Memory::Allocate(size);\
+	}\
+	static void operator delete (void *p) {\
+		Memory::Free(p);\
+	}
+
+	/**
+	Main memory class handling memory allocation in gcix
+	*/
+	class Memory
 	{
 	public:
-		void AddGcRoot(void *gcRoot);
+		static void Free(void* ptr);
 
-		void RemoveGcRoot(void *gcRoot);
+		static void* Allocate(size_t size);
 
-		static Collector Instance;
+		static void* AllocateZero(size_t size);
+
+		static void* ReAllocate(void* ptr, size_t size);
+
+		static void Initialize();
+
+		static inline bool IsPowerOfTwoOrZero(uint32_t value)
+		{
+			return (value & (value - 1)) == 0;
+		}
+
+		template <typename T>
+		static inline T Align(T size, uint32_t align)
+		{
+			// Check that align is a power of two
+			gcix_assert(IsPowerOfTwoOrZero(align));
+			return (size + (align - 1)) & ~(align - 1);
+		}
+
+		/**
+		Clear/zero a small region of memory
+		*/
+		static inline void ClearSmall(void* from, int size)
+		{
+			gcix_assert((size & 3) == 0);
+
+			// This is usually translated to a rep stosd in x86
+			for(int i = 0; i < size/4; i++)
+			{
+				((uint32_t*)from)[i] = 0;
+			}
+		}
 	private:
-		PointerList gcRoots;
+		Memory() {}
 	};
-
 }
