@@ -1,0 +1,45 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30110.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gcix", "gcix.vcxproj", "{2B196148-FA50-4052-8491-6DEC650482B8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gtest-md", "..\external\gtest-1.7.0\msvc\gtest-md.vcxproj", "{C8F6C172-56F2-4E76-B5FA-C3B423B31BE8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "external", "external", "{23A75BD8-3DA9-4D31-BAE9-56C292E47BB8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "core", "core", "{8F36B249-8F78-43D9-AF28-57FB2E70C818}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{4A3AD638-1C99-4EC5-B88D-2CDEB8930AAF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gcix-tests", "..\tests\gcix-tests\gcix-tests.vcxproj", "{2FBD1567-FCFC-4F4E-A8C3-5B47F032317D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2B196148-FA50-4052-8491-6DEC650482B8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2B196148-FA50-4052-8491-6DEC650482B8}.Debug|Win32.Build.0 = Debug|Win32
+		{2B196148-FA50-4052-8491-6DEC650482B8}.Release|Win32.ActiveCfg = Release|Win32
+		{2B196148-FA50-4052-8491-6DEC650482B8}.Release|Win32.Build.0 = Release|Win32
+		{C8F6C172-56F2-4E76-B5FA-C3B423B31BE8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C8F6C172-56F2-4E76-B5FA-C3B423B31BE8}.Debug|Win32.Build.0 = Debug|Win32
+		{C8F6C172-56F2-4E76-B5FA-C3B423B31BE8}.Release|Win32.ActiveCfg = Release|Win32
+		{C8F6C172-56F2-4E76-B5FA-C3B423B31BE8}.Release|Win32.Build.0 = Release|Win32
+		{2FBD1567-FCFC-4F4E-A8C3-5B47F032317D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2FBD1567-FCFC-4F4E-A8C3-5B47F032317D}.Debug|Win32.Build.0 = Debug|Win32
+		{2FBD1567-FCFC-4F4E-A8C3-5B47F032317D}.Release|Win32.ActiveCfg = Release|Win32
+		{2FBD1567-FCFC-4F4E-A8C3-5B47F032317D}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C8F6C172-56F2-4E76-B5FA-C3B423B31BE8} = {23A75BD8-3DA9-4D31-BAE9-56C292E47BB8}
+		{2B196148-FA50-4052-8491-6DEC650482B8} = {8F36B249-8F78-43D9-AF28-57FB2E70C818}
+		{2FBD1567-FCFC-4F4E-A8C3-5B47F032317D} = {4A3AD638-1C99-4EC5-B88D-2CDEB8930AAF}
+	EndGlobalSection
+EndGlobal
